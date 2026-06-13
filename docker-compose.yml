@@ -1,0 +1,39 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      APP_ENV: production
+      CORS_ORIGINS: http://localhost:3000
+      DATA_DIR: /app/data
+      MAX_UPLOAD_MB: 80
+      EMBEDDING_MODEL: BAAI/bge-m3
+      QWEN_MODEL_ID: Qwen/Qwen3-4B-Instruct-2507
+      VECTOR_BACKEND: chroma
+      LLM_PROVIDER: transformers
+      TOP_K: 6
+      MIN_RELEVANCE: 0.25
+    volumes:
+      - legal_ai_data:/app/data
+      - hf_cache:/root/.cache/huggingface
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /api
+    environment:
+      INTERNAL_API_BASE_URL: http://api:8000
+      NEXT_PUBLIC_API_BASE_URL: /api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  legal_ai_data:
+  hf_cache:

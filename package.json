@@ -1,0 +1,21 @@
+{
+  "name": "adala-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-grade RAG platform for Egyptian legal research.",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "build:web": "npm --workspace apps/web run build",
+    "lint:web": "npm --workspace apps/web run lint",
+    "typecheck:web": "npm --workspace apps/web run typecheck",
+    "dev:api": "cd apps/api && uvicorn app.main:app --reload --host 0.0.0.0 --port 8001",
+    "api:check": "cd apps/api && python -m compileall app"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  }
+}
