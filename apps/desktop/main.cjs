@@ -43,18 +43,33 @@ function desktopSettingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
+function bundledDefaultSettings() {
+  const candidates = isPackaged()
+    ? [path.join(process.resourcesPath, "settings.default.json")]
+    : [path.join(__dirname, "build", "settings.default.json"), path.join(__dirname, "default-settings.example.json")];
+  for (const candidate of candidates) {
+    const settings = readJsonIfExists(candidate);
+    if (Object.keys(settings).length > 0) {
+      return settings;
+    }
+  }
+  return {};
+}
+
 function ensureDesktopSettings() {
   const settingsPath = desktopSettingsPath();
   if (!fs.existsSync(settingsPath)) {
+    const defaults = bundledDefaultSettings();
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
     fs.writeFileSync(
       settingsPath,
       JSON.stringify(
         {
-          ollamaBaseUrl: "https://your-remote-ollama.example.com",
-          ollamaModel: "qwen3:1.7b",
-          ollamaApiKey: "",
-          ragLlmEnabled: false
+          ollamaBaseUrl: defaults.ollamaBaseUrl || "https://your-remote-ollama.example.com",
+          ollamaModel: defaults.ollamaModel || "qwen3:1.7b",
+          ollamaApiKey: defaults.ollamaApiKey || "",
+          ragLlmEnabled: defaults.ragLlmEnabled || false,
+          ocrEnabled: defaults.ocrEnabled || false
         },
         null,
         2
@@ -72,7 +87,8 @@ function modelSettings() {
     ollamaBaseUrl,
     ollamaModel: process.env.OLLAMA_MODEL || fileSettings.ollamaModel || "qwen3:1.7b",
     ollamaApiKey: process.env.OLLAMA_API_KEY || fileSettings.ollamaApiKey || "",
-    ragLlmEnabled: String(process.env.RAG_LLM_ENABLED || fileSettings.ragLlmEnabled || "false")
+    ragLlmEnabled: String(process.env.RAG_LLM_ENABLED || fileSettings.ragLlmEnabled || "false"),
+    ocrEnabled: String(process.env.OCR_ENABLED || fileSettings.ocrEnabled || "false")
   };
 }
 
@@ -115,8 +131,8 @@ function startApi() {
     OLLAMA_BASE_URL: settings.ollamaBaseUrl,
     OLLAMA_MODEL: settings.ollamaModel,
     OLLAMA_API_KEY: settings.ollamaApiKey,
-    OCR_ENABLED: "true",
-    OCR_ON_UPLOAD: "true"
+    OCR_ENABLED: settings.ocrEnabled,
+    OCR_ON_UPLOAD: settings.ocrEnabled
   };
 
   if (settings.ollamaBaseUrl.includes("your-remote-ollama.example.com")) {

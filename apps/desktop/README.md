@@ -6,7 +6,7 @@ The desktop app is designed for the lightweight installer path:
 
 - The UI and API run on the user's machine.
 - The model runs on a remote Ollama-compatible endpoint over the internet.
-- End users do not need to install Ollama or download Qwen locally.
+- End users do not need to install Node, Python, npm, Ollama, or Qwen locally.
 - Uploaded PDFs, OCR output, SQLite metadata, and indexes stay local in the app data folder.
 
 ## Remote Model Settings
@@ -24,7 +24,8 @@ Example:
   "ollamaBaseUrl": "https://your-remote-ollama.example.com",
   "ollamaModel": "qwen3:1.7b",
   "ollamaApiKey": "",
-  "ragLlmEnabled": false
+  "ragLlmEnabled": false,
+  "ocrEnabled": false
 }
 ```
 
@@ -68,27 +69,21 @@ pip install -r requirements-local.txt
 
 ## Installer Build Path
 
-Build the web app:
+From the repository root, build everything with:
 
 ```powershell
-npm run build:web
+.\scripts\build-windows-installer.ps1 `
+  -RemoteModelUrl "https://your-remote-ollama.example.com" `
+  -RemoteModel "qwen3:1.7b"
 ```
 
-Package the Python API into an executable:
+For a protected endpoint:
 
 ```powershell
-cd apps/api
-.\.venv\Scripts\Activate.ps1
-pip install pyinstaller
-pyinstaller --name adala-api --onedir launcher.py
-```
-
-Build the Windows installer:
-
-```powershell
-cd ../..
-npm --prefix apps/desktop install
-npm run build:desktop
+.\scripts\build-windows-installer.ps1 `
+  -RemoteModelUrl "https://your-remote-ollama.example.com" `
+  -RemoteModel "qwen3:1.7b" `
+  -RemoteModelApiKey "YOUR_SERVER_TOKEN"
 ```
 
 The installer output is written to:
@@ -96,6 +91,20 @@ The installer output is written to:
 ```text
 apps/desktop/release
 ```
+
+End users only need the generated `Adala AI Setup.exe`.
+
+## Compact vs OCR Builds
+
+The default installer is compact:
+
+```text
+ocrEnabled: false
+```
+
+That avoids bundling EasyOCR/Torch and keeps the package much smaller. It still reads searchable PDFs through pypdf/PyMuPDF.
+
+For a heavier all-in-one installer with local OCR dependencies, run the build script with `-EnableOcr`. This can significantly increase installer size.
 
 ## Notes
 

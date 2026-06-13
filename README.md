@@ -284,7 +284,9 @@ Option A, the lightweight installer mode, works like this:
 - The desktop app starts the local Next.js UI automatically.
 - Uploaded PDFs, OCR output, indexes, and chat history stay local on the user's machine.
 - The model runs over the internet through a remote Ollama-compatible `/api/chat` endpoint.
-- The user does not install Ollama locally and does not download model weights.
+- The user does not install Node, Python, npm, Ollama, or model weights.
+
+The person building the installer still needs the build toolchain once. The person downloading the finished installer does not.
 
 ### Remote Model Requirement
 
@@ -337,34 +339,40 @@ npm run dev:desktop
 
 ### Build a Windows Installer
 
-Build the web app:
+Use the one-command installer build:
 
 ```powershell
-npm run build:web
+.\scripts\build-windows-installer.ps1 `
+  -RemoteModelUrl "https://your-remote-ollama.example.com" `
+  -RemoteModel "qwen3:1.7b"
 ```
 
-Package the API:
+With a protected remote model endpoint:
 
 ```powershell
-cd apps/api
-.\.venv\Scripts\Activate.ps1
-pip install pyinstaller
-pyinstaller --name adala-api --onedir launcher.py
-cd ../..
+.\scripts\build-windows-installer.ps1 `
+  -RemoteModelUrl "https://your-remote-ollama.example.com" `
+  -RemoteModel "qwen3:1.7b" `
+  -RemoteModelApiKey "YOUR_SERVER_TOKEN"
 ```
 
-Build the installer:
+The script will:
 
-```powershell
-npm --prefix apps/desktop install
-npm run build:desktop
-```
+- install Node dependencies
+- install compact Python backend dependencies
+- package the FastAPI backend into an executable
+- build the Next.js UI
+- create a Windows installer with Electron Builder
 
 Installer output:
 
 ```text
 apps/desktop/release
 ```
+
+Send the generated `Adala AI Setup.exe` to users. They install it and open **Adala AI** from the Start Menu or desktop shortcut.
+
+Compact mode disables local EasyOCR/Torch by default to keep the installer smaller. Searchable PDFs still parse normally. If you want a heavier installer with local OCR, run the build script with `-EnableOcr`, but expect a much larger package.
 
 See [apps/desktop/README.md](apps/desktop/README.md) for desktop-specific details.
 

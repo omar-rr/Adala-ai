@@ -52,6 +52,10 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "build/settings.default.json",
+        "to": "settings.default.json"
       }
     ],
     "win": {
