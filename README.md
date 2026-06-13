@@ -285,6 +285,7 @@ No-server installer mode works like this:
 - Uploaded PDFs, OCR output, indexes, and chat history stay local on the user's machine.
 - The user does not install Node, Python, npm, Ollama, or model weights.
 - Legal answers are generated locally with the app's extractive grounded-answer engine and citations.
+- Users can enable optional Local AI Mode from inside the app by installing Ollama and downloading `qwen3:1.7b`.
 
 The person building the installer still needs the build toolchain once. The person downloading the finished installer does not.
 
@@ -298,7 +299,9 @@ Build without a remote model URL:
 
 This creates an installer that does not require a remote Ollama server and does not show the remote model warning. It can upload, OCR, index, search, cite, and answer from PDFs locally.
 
-A true ChatGPT-like local model requires bundling model weights, which makes the installer much larger. Remote-model mode is still available when you have a hosted Ollama-compatible server reachable from the user's machine.
+For full conversational AI without your own server, users open **AI mode** in the app. The workspace blurs and guides them to install Ollama, check that it is running, download `qwen3:1.7b`, and enable the model. The model then runs on the user's computer.
+
+A true bundled local model would make the installer much larger. Remote-model mode is still available when you have a hosted Ollama-compatible server reachable from the user's machine.
 
 The desktop app reads:
 

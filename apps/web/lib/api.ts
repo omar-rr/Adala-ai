@@ -1,4 +1,12 @@
-import type { ChatMessage, Citation, Conversation, LegalDocument, StreamHandlers } from "@/lib/types";
+import type {
+  ChatMessage,
+  Citation,
+  Conversation,
+  LegalDocument,
+  LocalModelStatus,
+  ModelPullHandlers,
+  StreamHandlers,
+} from "@/lib/types";
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001/api").replace(
   /\/$/,
@@ -45,6 +53,22 @@ export async function listMessages(conversationId: string) {
   return readJson<ChatMessage[]>(await fetch(`${API_BASE}/conversations/${conversationId}/messages`));
 }
 
+export async function getLocalModelStatus(model = "qwen3:1.7b") {
+  const url = new URL(`${API_BASE}/model/status`);
+  url.searchParams.set("model", model);
+  return readJson<LocalModelStatus>(await fetch(url));
+}
+
+export async function enableLocalModel(model = "qwen3:1.7b") {
+  return readJson<LocalModelStatus>(
+    await fetch(`${API_BASE}/model/enable-local`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    }),
+  );
+}
+
 export function documentFileUrl(documentId: string) {
   return `${API_BASE}/documents/${documentId}/file`;
 }
@@ -85,6 +109,64 @@ export async function streamChat(
     if (event.type === "citations" && event.citations) handlers.onCitations?.(event.citations);
     if (event.type === "answer_delta" && event.delta) handlers.onDelta?.(event.delta);
     if (event.type === "done" && event.conversation_id) handlers.onDone?.(event.conversation_id);
+    if (event.type === "error" && event.error) handlers.onError?.(event.error);
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() || "";
+    for (const event of events) {
+      for (const line of event.split("\n")) {
+        handlePayload(line);
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    for (const line of buffer.split("\n")) {
+      handlePayload(line);
+    }
+  }
+}
+
+export async function streamLocalModelPull(model: string, handlers: ModelPullHandlers) {
+  const response = await fetch(`${API_BASE}/model/pull`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error((await response.text()) || "Unable to start model download.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const handlePayload = (line: string) => {
+    if (!line.startsWith("data:")) return;
+    const raw = line.slice(5).trim();
+    if (!raw) return;
+    const event = JSON.parse(raw) as {
+      type: string;
+      status?: string;
+      completed?: number | null;
+      total?: number | null;
+      model?: string;
+      error?: string;
+    };
+    if (event.type === "progress" && event.status) {
+      handlers.onProgress?.({
+        status: event.status,
+        completed: event.completed,
+        total: event.total,
+      });
+    }
+    if (event.type === "done" && event.model) handlers.onDone?.(event.model);
     if (event.type === "error" && event.error) handlers.onError?.(event.error);
   };
 

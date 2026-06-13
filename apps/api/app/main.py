@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import db
-from app.api import chat, documents
+from app.api import chat, documents, model
 from app.config import settings
 from app.models import HealthOut
 
@@ -32,9 +32,9 @@ app.add_middleware(
 
 app.include_router(documents.router)
 app.include_router(chat.router)
+app.include_router(model.router)
 
 
 @app.get("/api/health", response_model=HealthOut, tags=["health"])
 def health() -> HealthOut:
     return HealthOut(status="ok", app=settings.app_name, environment=settings.app_env)
-

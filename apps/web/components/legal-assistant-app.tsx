@@ -4,17 +4,23 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BookOpen,
   Bot,
+  CheckCircle2,
+  Cpu,
+  Download,
+  ExternalLink,
   FileText,
   Loader2,
   MessageSquareText,
   Paperclip,
   Plus,
+  RefreshCcw,
   Scale,
   Search,
   SendHorizontal,
   ShieldCheck,
   Sparkles,
   Upload,
+  X,
 } from "lucide-react";
 import * as React from "react";
 
@@ -24,13 +30,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  enableLocalModel,
+  getLocalModelStatus,
   listConversations,
   listDocuments,
   listMessages,
   streamChat,
+  streamLocalModelPull,
   uploadDocument,
 } from "@/lib/api";
-import type { ChatMessage, Citation, Conversation, LegalDocument } from "@/lib/types";
+import type { ChatMessage, Citation, Conversation, LegalDocument, LocalModelStatus } from "@/lib/types";
 import { cn, formatArticle, isArabic } from "@/lib/utils";
 
 const suggestions = [
@@ -40,7 +49,15 @@ const suggestions = [
   "ما أهم الحقوق والحريات في المستندات؟",
 ];
 
+const LOCAL_MODEL = "qwen3:1.7b";
+
 type UploadState = "idle" | "uploading" | "done" | "error";
+type ModelProgress = {
+  status: string;
+  completed?: number | null;
+  total?: number | null;
+  error?: string | null;
+};
 
 export function LegalAssistantApp() {
   const [documents, setDocuments] = React.useState<LegalDocument[]>([]);
@@ -71,6 +88,10 @@ export function LegalAssistantApp() {
   const [isStreaming, setIsStreaming] = React.useState(false);
   const [uploadState, setUploadState] = React.useState<UploadState>("idle");
   const [statusText, setStatusText] = React.useState<string | null>(null);
+  const [modelStatus, setModelStatus] = React.useState<LocalModelStatus | null>(null);
+  const [modelSetupOpen, setModelSetupOpen] = React.useState(false);
+  const [modelBusy, setModelBusy] = React.useState(false);
+  const [modelProgress, setModelProgress] = React.useState<ModelProgress | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const composerFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const chatEndRef = React.useRef<HTMLDivElement | null>(null);
@@ -83,17 +104,31 @@ export function LegalAssistantApp() {
     return listConversations();
   }, []);
 
+  const refreshModelStatus = React.useCallback(async () => {
+    const nextStatus = await getLocalModelStatus(LOCAL_MODEL);
+    setModelStatus(nextStatus);
+    return nextStatus;
+  }, []);
+
   React.useEffect(() => {
     let active = true;
     async function loadInitialState() {
       try {
-        const [nextDocuments, nextConversations] = await Promise.all([
+        const [nextDocuments, nextConversations, nextModelStatus] = await Promise.all([
           refreshDocuments(),
           refreshConversations(),
+          refreshModelStatus(),
         ]);
         if (!active) return;
         setDocuments(nextDocuments);
         setConversations(nextConversations);
+        setModelStatus(nextModelStatus);
+        const dismissed =
+          typeof window !== "undefined" &&
+          window.localStorage.getItem("adala-ai-model-setup-dismissed") === "true";
+        if (!nextModelStatus.local_model_enabled && !dismissed) {
+          setModelSetupOpen(true);
+        }
       } catch {
         if (active) setStatusText("Could not load initial workspace data.");
       }
@@ -102,7 +137,7 @@ export function LegalAssistantApp() {
     return () => {
       active = false;
     };
-  }, [refreshDocuments, refreshConversations]);
+  }, [refreshDocuments, refreshConversations, refreshModelStatus]);
 
   React.useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -171,6 +206,86 @@ export function LegalAssistantApp() {
     setConversationId(conversation.id);
     setStages([]);
     setMessages(await listMessages(conversation.id));
+  };
+
+  const closeModelSetupForNow = () => {
+    window.localStorage.setItem("adala-ai-model-setup-dismissed", "true");
+    setModelSetupOpen(false);
+  };
+
+  const handleRefreshModel = async () => {
+    setModelBusy(true);
+    setModelProgress(null);
+    try {
+      await refreshModelStatus();
+    } catch (error) {
+      setModelProgress({
+        status: "Could not check local Ollama.",
+        error: error instanceof Error ? error.message : "Model status check failed.",
+      });
+    } finally {
+      setModelBusy(false);
+    }
+  };
+
+  const handleEnableModel = async () => {
+    setModelBusy(true);
+    setModelProgress({ status: "Enabling local AI mode..." });
+    try {
+      const nextStatus = await enableLocalModel(LOCAL_MODEL);
+      setModelStatus(nextStatus);
+      window.localStorage.removeItem("adala-ai-model-setup-dismissed");
+      setModelProgress({ status: "Local AI mode is enabled." });
+      setStatusText("Local AI mode enabled. General chat now uses your local Qwen model.");
+      setModelSetupOpen(false);
+    } catch (error) {
+      setModelProgress({
+        status: "Could not enable local AI mode.",
+        error: error instanceof Error ? error.message : "Enable failed.",
+      });
+    } finally {
+      setModelBusy(false);
+    }
+  };
+
+  const handlePullModel = async () => {
+    setModelBusy(true);
+    setModelProgress({ status: `Starting ${LOCAL_MODEL} download...` });
+    let streamError: string | null = null;
+    try {
+      await streamLocalModelPull(LOCAL_MODEL, {
+        onProgress: (event) => {
+          setModelProgress({
+            status: event.status,
+            completed: event.completed,
+            total: event.total,
+          });
+        },
+        onDone: () => {
+          setModelProgress({ status: "Download complete. Enabling local AI mode..." });
+        },
+        onError: (error) => {
+          streamError = error;
+          setModelProgress({ status: "Model download failed.", error });
+        },
+      });
+      if (streamError) {
+        throw new Error(streamError);
+      }
+      const nextStatus = await refreshModelStatus();
+      window.localStorage.removeItem("adala-ai-model-setup-dismissed");
+      if (nextStatus.local_model_enabled) {
+        setStatusText("Local AI model downloaded and enabled.");
+        setModelSetupOpen(false);
+      }
+    } catch (error) {
+      setModelProgress({
+        status: "Model download failed.",
+        error: error instanceof Error ? error.message : "Download failed.",
+      });
+    } finally {
+      setModelBusy(false);
+    }
   };
 
   const sendMessage = async (value = query) => {
@@ -254,8 +369,13 @@ export function LegalAssistantApp() {
   };
 
   return (
-    <main className="h-dvh overflow-hidden p-3 text-white lg:p-5">
-      <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[316px_minmax(0,1fr)]">
+    <main className="relative h-dvh overflow-hidden p-3 text-white lg:p-5">
+      <div
+        className={cn(
+          "grid h-full min-h-0 gap-3 transition duration-300 lg:grid-cols-[316px_minmax(0,1fr)]",
+          modelSetupOpen && "pointer-events-none blur-sm brightness-50",
+        )}
+      >
         <aside className="glass flex min-h-0 flex-col rounded-[8px]">
           <div className="border-b border-white/10 p-4">
             <div className="flex items-center gap-3">
@@ -387,10 +507,21 @@ export function LegalAssistantApp() {
                   </p>
                 </div>
               </div>
-              <Badge className="hidden border-[#23d6a2]/30 bg-[#23d6a2]/10 text-[#8af0cf] sm:inline-flex">
-                <ShieldCheck className="mr-1 h-3 w-3" />
-                Context-only
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  title="Local AI model setup"
+                  onClick={() => setModelSetupOpen(true)}
+                >
+                  <Cpu className="h-3.5 w-3.5" />
+                  {modelStatus?.local_model_enabled ? "Local AI" : "AI mode"}
+                </Button>
+                <Badge className="hidden border-[#23d6a2]/30 bg-[#23d6a2]/10 text-[#8af0cf] sm:inline-flex">
+                  <ShieldCheck className="mr-1 h-3 w-3" />
+                  Context-only
+                </Badge>
+              </div>
             </header>
 
             <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-5">
@@ -489,8 +620,191 @@ export function LegalAssistantApp() {
           </AnimatePresence>
         </section>
       </div>
+      <AnimatePresence>
+        {modelSetupOpen ? (
+          <LocalModelSetup
+            status={modelStatus}
+            progress={modelProgress}
+            busy={modelBusy}
+            modelName={LOCAL_MODEL}
+            onClose={closeModelSetupForNow}
+            onRefresh={() => void handleRefreshModel()}
+            onPull={() => void handlePullModel()}
+            onEnable={() => void handleEnableModel()}
+          />
+        ) : null}
+      </AnimatePresence>
     </main>
   );
+}
+
+function LocalModelSetup({
+  status,
+  progress,
+  busy,
+  modelName,
+  onClose,
+  onRefresh,
+  onPull,
+  onEnable,
+}: {
+  status: LocalModelStatus | null;
+  progress: ModelProgress | null;
+  busy: boolean;
+  modelName: string;
+  onClose: () => void;
+  onRefresh: () => void;
+  onPull: () => void;
+  onEnable: () => void;
+}) {
+  const completedBytes = progress?.completed ?? null;
+  const totalBytes = progress?.total ?? null;
+  const hasProgressBytes = completedBytes !== null && totalBytes !== null;
+  const progressPercent =
+    hasProgressBytes && totalBytes > 0
+      ? Math.max(0, Math.min(100, Math.round((completedBytes / totalBytes) * 100)))
+      : null;
+  const ollamaRunning = Boolean(status?.ollama_running);
+  const modelAvailable = Boolean(status?.model_available);
+  const localModelEnabled = Boolean(status?.local_model_enabled);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="absolute inset-0 z-50 grid place-items-center bg-black/62 px-4 backdrop-blur-md"
+    >
+      <motion.section
+        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 18, scale: 0.98 }}
+        className="w-full max-w-[640px] rounded-[8px] border border-white/12 bg-[#080b10]/95 p-5 shadow-2xl"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <Badge className="border-[#23d6a2]/30 bg-[#23d6a2]/10 text-[#8af0cf]">
+              <Cpu className="mr-1 h-3 w-3" />
+              Local AI model
+            </Badge>
+            <h2 className="mt-4 text-2xl font-semibold text-white">Download local AI model to use</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/58">
+              Adala AI can search and cite PDFs now. For full conversational AI, install Ollama and
+              download {modelName}; the model runs privately on this computer.
+            </p>
+          </div>
+          <Button size="icon" variant="ghost" title="Use document mode for now" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          <ModelStatusTile
+            label="Ollama app"
+            ready={ollamaRunning}
+            text={ollamaRunning ? "Running" : "Not detected"}
+          />
+          <ModelStatusTile
+            label="Qwen model"
+            ready={modelAvailable}
+            text={modelAvailable ? "Downloaded" : "Needs download"}
+          />
+          <ModelStatusTile
+            label="AI mode"
+            ready={localModelEnabled}
+            text={localModelEnabled ? "Enabled" : "Document mode"}
+          />
+        </div>
+
+        {progress ? (
+          <div className="mt-5 rounded-[8px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="flex items-center justify-between gap-3 text-sm text-white/72">
+              <span>{progress.status}</span>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin text-[#23d6a2]" /> : null}
+            </div>
+            {progressPercent !== null ? (
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full bg-[#23d6a2]" style={{ width: `${progressPercent}%` }} />
+              </div>
+            ) : null}
+            {hasProgressBytes ? (
+              <p className="mt-2 text-xs text-white/42">
+                {formatModelBytes(completedBytes)} of {formatModelBytes(totalBytes)}
+              </p>
+            ) : null}
+            {progress.error ? <p className="mt-2 text-xs text-[#ff8995]">{progress.error}</p> : null}
+          </div>
+        ) : null}
+
+        <div className="mt-5 rounded-[8px] border border-[#f6c85f]/20 bg-[#f6c85f]/[0.08] p-4 text-sm leading-6 text-[#f7d983]">
+          {ollamaRunning
+            ? modelAvailable
+              ? "The local model is ready. Enable AI mode and continue inside Adala AI."
+              : "Ollama is running. Download the Qwen model once, then Adala AI can use it locally."
+            : "Install Ollama, open it once, then return here and press Check again."}
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          {!ollamaRunning ? (
+            <Button asChild>
+              <a href="https://ollama.com/download/windows" target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" />
+                Download Ollama
+              </a>
+            </Button>
+          ) : null}
+          {ollamaRunning && !modelAvailable ? (
+            <Button disabled={busy} onClick={onPull}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Download {modelName}
+            </Button>
+          ) : null}
+          {ollamaRunning && modelAvailable && !localModelEnabled ? (
+            <Button disabled={busy} onClick={onEnable}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Enable AI mode
+            </Button>
+          ) : null}
+          {localModelEnabled ? (
+            <Button onClick={onClose}>
+              <CheckCircle2 className="h-4 w-4" />
+              Continue
+            </Button>
+          ) : null}
+          <Button disabled={busy} variant="secondary" onClick={onRefresh}>
+            <RefreshCcw className={cn("h-4 w-4", busy && "animate-spin")} />
+            Check again
+          </Button>
+          <Button disabled={busy} variant="ghost" onClick={onClose}>
+            Use document mode for now
+          </Button>
+        </div>
+      </motion.section>
+    </motion.div>
+  );
+}
+
+function ModelStatusTile({ label, ready, text }: { label: string; ready: boolean; text: string }) {
+  return (
+    <div className="rounded-[8px] border border-white/10 bg-white/[0.04] p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs uppercase tracking-[0.12em] text-white/38">{label}</p>
+        <span className={cn("h-2 w-2 rounded-full", ready ? "bg-[#23d6a2]" : "bg-[#f6c85f]")} />
+      </div>
+      <p className="mt-2 text-sm text-white/76">{text}</p>
+    </div>
+  );
+}
+
+function formatModelBytes(value: number) {
+  if (value < 1024) return `${value} B`;
+  const units = ["KB", "MB", "GB"];
+  let next = value / 1024;
+  for (const unit of units) {
+    if (next < 1024) return `${next.toFixed(next >= 100 ? 0 : 1)} ${unit}`;
+    next /= 1024;
+  }
+  return `${next.toFixed(1)} TB`;
 }
 
 function SectionTitle({

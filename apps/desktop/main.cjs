@@ -131,6 +131,7 @@ function startApi() {
     APP_ENV: "desktop",
     CORS_ORIGINS: `${WEB_URL},http://localhost:${WEB_PORT}`,
     DATA_DIR: path.join(app.getPath("userData"), "data"),
+    ADALA_DESKTOP_SETTINGS_PATH: desktopSettingsPath(),
     VECTOR_BACKEND: "local",
     LLM_PROVIDER: settings.llmProvider,
     RAG_LLM_ENABLED: settings.ragLlmEnabled,

@@ -40,3 +40,19 @@ export type StreamHandlers = {
   onError?: (error: string) => void;
 };
 
+export type LocalModelStatus = {
+  ollama_running: boolean;
+  installed_models: string[];
+  target_model: string;
+  model_available: boolean;
+  llm_provider: string;
+  local_model_enabled: boolean;
+  ollama_base_url: string;
+  error?: string | null;
+};
+
+export type ModelPullHandlers = {
+  onProgress?: (event: { status: string; completed?: number | null; total?: number | null }) => void;
+  onDone?: (model: string) => void;
+  onError?: (error: string) => void;
+};

@@ -8,6 +8,7 @@ The desktop app supports two installer modes:
 - End users do not need to install Node, Python, npm, Ollama, or Qwen locally.
 - Uploaded PDFs, OCR output, SQLite metadata, and indexes stay local in the app data folder.
 - No-server mode is free for users and uses local extractive legal answers with citations.
+- Local AI Mode lets users install Ollama and download `qwen3:1.7b` from inside the app.
 - Remote-model mode connects to a hosted Ollama-compatible endpoint for more conversational generation.
 
 ## No-Server Mode
@@ -18,7 +19,16 @@ Build without `-RemoteModelUrl`:
 .\scripts\build-windows-installer.ps1 -EnableOcr
 ```
 
-This creates an installer that runs without a remote model server and does not show the remote Ollama warning. It can upload, OCR, index, search, cite, and answer from PDFs locally. General chat is handled by the app's built-in assistant logic rather than a full local LLM.
+This creates an installer that runs without a remote model server and does not show the remote Ollama warning. It can upload, OCR, index, search, cite, and answer from PDFs locally. General chat is handled by the app's built-in assistant logic until the user enables Local AI Mode.
+
+Inside the app, users can open **AI mode**. The workspace blurs and shows the setup flow:
+
+1. Install Ollama if it is not detected.
+2. Press **Check again** after Ollama is running.
+3. Press **Download qwen3:1.7b**.
+4. Press **Enable AI mode**.
+
+After that, Adala AI uses the user's local Ollama model for conversational answers.
 
 ## Remote Model Settings
 
