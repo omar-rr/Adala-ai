@@ -65,6 +65,10 @@ if (-not (Test-Path ".venv")) {
 }
 & ".\.venv\Scripts\python.exe" -m pip install --upgrade pip
 & ".\.venv\Scripts\pip.exe" install -r requirements-desktop.txt
+if ($EnableOcr) {
+  Write-Step "Installing optional OCR dependencies"
+  & ".\.venv\Scripts\pip.exe" install "easyocr>=1.7.2"
+}
 Remove-GeneratedDirectory $apiDistDir
 Remove-GeneratedDirectory $apiBuildDir
 & ".\.venv\Scripts\pyinstaller.exe" `
