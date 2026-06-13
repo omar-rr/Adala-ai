@@ -278,19 +278,27 @@ cp apps/web/.env.example apps/web/.env.local
 
 The desktop app is the compact installer path. It is designed so a user can install and open **Adala AI** like a normal Windows app.
 
-Option A, the lightweight installer mode, works like this:
+No-server installer mode works like this:
 
 - The desktop app starts the local FastAPI backend automatically.
 - The desktop app starts the local Next.js UI automatically.
 - Uploaded PDFs, OCR output, indexes, and chat history stay local on the user's machine.
-- The model runs over the internet through a remote Ollama-compatible `/api/chat` endpoint.
 - The user does not install Node, Python, npm, Ollama, or model weights.
+- Legal answers are generated locally with the app's extractive grounded-answer engine and citations.
 
 The person building the installer still needs the build toolchain once. The person downloading the finished installer does not.
 
-### Remote Model Requirement
+### No-Server Mode
 
-You need a hosted Ollama-compatible server reachable from the user's machine.
+Build without a remote model URL:
+
+```powershell
+.\scripts\build-windows-installer.ps1 -EnableOcr
+```
+
+This creates an installer that does not require a remote Ollama server and does not show the remote model warning. It can upload, OCR, index, search, cite, and answer from PDFs locally.
+
+A true ChatGPT-like local model requires bundling model weights, which makes the installer much larger. Remote-model mode is still available when you have a hosted Ollama-compatible server reachable from the user's machine.
 
 The desktop app reads:
 
@@ -303,13 +311,15 @@ Example:
 ```json
 {
   "ollamaBaseUrl": "https://your-remote-ollama.example.com",
+  "llmProvider": "extractive",
   "ollamaModel": "qwen3:1.7b",
   "ollamaApiKey": "",
-  "ragLlmEnabled": false
+  "ragLlmEnabled": false,
+  "ocrEnabled": true
 }
 ```
 
-If your remote server requires auth, set `ollamaApiKey`; the app sends it as a bearer token.
+Use `"llmProvider": "extractive"` for no-server mode. If your remote server requires auth in remote-model mode, set `ollamaApiKey`; the app sends it as a bearer token.
 
 ### Run Desktop Mode in Development
 
@@ -339,7 +349,13 @@ npm run dev:desktop
 
 ### Build a Windows Installer
 
-Use the one-command installer build:
+Use the no-server installer build:
+
+```powershell
+.\scripts\build-windows-installer.ps1 -EnableOcr
+```
+
+Or use the remote-model installer build:
 
 ```powershell
 .\scripts\build-windows-installer.ps1 `
@@ -372,7 +388,7 @@ apps/desktop/release
 
 Send the generated `Adala AI Setup.exe` to users. They install it and open **Adala AI** from the Start Menu or desktop shortcut.
 
-Compact mode disables local EasyOCR/Torch by default to keep the installer smaller. Searchable PDFs still parse normally. If you want a heavier installer with local OCR, run the build script with `-EnableOcr`, but expect a much larger package.
+Compact mode disables local EasyOCR/Torch by default to keep the installer smaller. Searchable PDFs still parse normally. For scanned Arabic PDFs, run the build script with `-EnableOcr`, but expect a much larger package.
 
 See [apps/desktop/README.md](apps/desktop/README.md) for desktop-specific details.
 

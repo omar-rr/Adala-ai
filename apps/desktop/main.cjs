@@ -68,6 +68,7 @@ function ensureDesktopSettings() {
           ollamaBaseUrl: defaults.ollamaBaseUrl || "https://your-remote-ollama.example.com",
           ollamaModel: defaults.ollamaModel || "qwen3:1.7b",
           ollamaApiKey: defaults.ollamaApiKey || "",
+          llmProvider: defaults.llmProvider || "extractive",
           ragLlmEnabled: defaults.ragLlmEnabled || false,
           ocrEnabled: defaults.ocrEnabled || false
         },
@@ -83,8 +84,13 @@ function modelSettings() {
   const fileSettings = ensureDesktopSettings();
   const ollamaBaseUrl =
     process.env.OLLAMA_BASE_URL || fileSettings.ollamaBaseUrl || "https://your-remote-ollama.example.com";
+  const llmProvider =
+    process.env.LLM_PROVIDER ||
+    fileSettings.llmProvider ||
+    (ollamaBaseUrl.includes("your-remote-ollama.example.com") ? "extractive" : "ollama");
   return {
     ollamaBaseUrl,
+    llmProvider,
     ollamaModel: process.env.OLLAMA_MODEL || fileSettings.ollamaModel || "qwen3:1.7b",
     ollamaApiKey: process.env.OLLAMA_API_KEY || fileSettings.ollamaApiKey || "",
     ragLlmEnabled: String(process.env.RAG_LLM_ENABLED || fileSettings.ragLlmEnabled || "false"),
@@ -126,7 +132,7 @@ function startApi() {
     CORS_ORIGINS: `${WEB_URL},http://localhost:${WEB_PORT}`,
     DATA_DIR: path.join(app.getPath("userData"), "data"),
     VECTOR_BACKEND: "local",
-    LLM_PROVIDER: "ollama",
+    LLM_PROVIDER: settings.llmProvider,
     RAG_LLM_ENABLED: settings.ragLlmEnabled,
     OLLAMA_BASE_URL: settings.ollamaBaseUrl,
     OLLAMA_MODEL: settings.ollamaModel,
@@ -135,7 +141,7 @@ function startApi() {
     OCR_ON_UPLOAD: settings.ocrEnabled
   };
 
-  if (settings.ollamaBaseUrl.includes("your-remote-ollama.example.com")) {
+  if (settings.llmProvider.toLowerCase() === "ollama" && settings.ollamaBaseUrl.includes("your-remote-ollama.example.com")) {
     dialog.showMessageBox({
       type: "warning",
       title: "Remote model endpoint not configured",

@@ -1,6 +1,5 @@
 param(
-  [Parameter(Mandatory = $true)]
-  [string]$RemoteModelUrl,
+  [string]$RemoteModelUrl = "",
 
   [string]$RemoteModel = "qwen3:1.7b",
 
@@ -40,8 +39,12 @@ function Remove-GeneratedDirectory($path) {
 
 Write-Step "Preparing desktop default settings"
 New-Item -ItemType Directory -Force $desktopBuildDir | Out-Null
+$cleanRemoteModelUrl = $RemoteModelUrl.Trim().TrimEnd("/")
+$llmProvider = if ($cleanRemoteModelUrl) { "ollama" } else { "extractive" }
+$defaultRemoteModelUrl = if ($cleanRemoteModelUrl) { $cleanRemoteModelUrl } else { "https://your-remote-ollama.example.com" }
 $settings = [ordered]@{
-  ollamaBaseUrl = $RemoteModelUrl.TrimEnd("/")
+  ollamaBaseUrl = $defaultRemoteModelUrl
+  llmProvider = $llmProvider
   ollamaModel = $RemoteModel
   ollamaApiKey = $RemoteModelApiKey
   ragLlmEnabled = [bool]$EnableRagLlm

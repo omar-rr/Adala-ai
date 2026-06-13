@@ -1,5 +1,6 @@
 {
   "ollamaBaseUrl": "https://your-remote-ollama.example.com",
+  "llmProvider": "extractive",
   "ollamaModel": "qwen3:1.7b",
   "ollamaApiKey": "",
   "ragLlmEnabled": false,
