@@ -92,48 +92,182 @@ flowchart LR
 - `GET /api/conversations`
 - `GET /api/conversations/{conversation_id}/messages`
 
-## Local Development
+## Install and Run
 
-Local development uses `VECTOR_BACKEND=local` for fast lexical/article-aware retrieval and `LLM_PROVIDER=ollama` for chatbot-style responses. Legal RAG answers default to the safer grounded composer with `RAG_LLM_ENABLED=false`, which prevents the local model from adding unsupported legal facts. Set `RAG_LLM_ENABLED=true` only if you want experimental Qwen synthesis over retrieved context.
+Local development uses:
 
-Install Ollama and pull a Qwen3 model for local chat generation:
+- FastAPI backend on [http://localhost:8001](http://localhost:8001)
+- Next.js frontend on [http://localhost:3001](http://localhost:3001)
+- Ollama/Qwen3 for normal chatbot responses
+- A safer grounded composer for legal RAG answers by default
 
-```bash
-ollama pull qwen3:1.7b
+Legal answers are intentionally conservative with `RAG_LLM_ENABLED=false`, so the local model can chat naturally without adding unsupported legal facts to document-grounded answers.
+
+### Prerequisites
+
+Install these first:
+
+- Git
+- Node.js 24 or newer
+- npm 11 or newer
+- Python 3.11 or 3.12
+- Ollama from [https://ollama.com](https://ollama.com)
+
+Check your versions:
+
+```powershell
+git --version
+node --version
+npm --version
+python --version
+ollama --version
 ```
 
-```bash
-cp .env.example .env
+### 1. Clone the Repository
+
+```powershell
+git clone https://github.com/omar-rr/Adala-ai.git
+cd "Adala-ai"
+```
+
+If you already have the project locally:
+
+```powershell
+cd "path\to\Adala-ai"
+git pull
+```
+
+### 2. Install Frontend Dependencies
+
+From the repository root:
+
+```powershell
 npm install
 ```
 
-Backend:
+### 3. Configure Environment Files
 
-```bash
-cd apps/api
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-local.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
-```
-
-Windows PowerShell:
+Create the backend env file:
 
 ```powershell
-cd apps/api
+Copy-Item apps/api/.env.example apps/api/.env
+```
+
+Create the frontend env file:
+
+```powershell
+Copy-Item apps/web/.env.example apps/web/.env.local
+```
+
+The default local settings are:
+
+```env
+VECTOR_BACKEND=local
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=qwen3:1.7b
+RAG_LLM_ENABLED=false
+OCR_ENABLED=true
+OCR_ON_UPLOAD=true
+```
+
+### 4. Install and Start Qwen with Ollama
+
+Pull the local Qwen3 model:
+
+```powershell
+ollama pull qwen3:1.7b
+```
+
+Start Ollama if it is not already running:
+
+```powershell
+ollama serve
+```
+
+Keep this terminal open. If Ollama is already running in the background, `ollama serve` may say the port is already in use; that is fine.
+
+### 5. Start the Backend API
+
+Open a new PowerShell terminal:
+
+```powershell
+cd "path\to\Adala-ai\apps\api"
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -r requirements-local.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-Frontend:
+The API should be available at:
 
-```bash
-npm run dev:web
+```text
+http://localhost:8001/api/health
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+### 6. Start the Frontend
+
+Open another PowerShell terminal:
+
+```powershell
+cd "path\to\Adala-ai"
+npm run dev:web -- --hostname 0.0.0.0 --port 3001
+```
+
+Open the app:
+
+[http://localhost:3001](http://localhost:3001)
+
+### 7. Use the App
+
+1. Upload one or more PDF files from the sidebar or chat input.
+2. Wait for indexing to finish. OCR may take longer for scanned Arabic PDFs.
+3. Ask questions in Arabic, English, or mixed Arabic-English.
+4. Click citations to open the PDF viewer at the cited page.
+
+Good test prompts:
+
+```text
+ما هي المادة 20؟
+ما هو القانون 101؟
+What is Article 247?
+what documents are uploaded?
+اشرحها ببساطة
+```
+
+If the answer is not in the uploaded PDFs, the assistant should say:
+
+```text
+I could not locate this information in the uploaded legal documents.
+```
+
+### macOS and Linux Notes
+
+Use the same steps, but create and activate the backend virtual environment with:
+
+```bash
+cd apps/api
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements-local.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+```
+
+Copy env files with:
+
+```bash
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+```
+
+### Troubleshooting
+
+- `address already in use`: another process is already running on that port. Use a different port or stop the old server.
+- Frontend cannot reach API: confirm `apps/web/.env.local` contains `NEXT_PUBLIC_API_BASE_URL=http://localhost:8001/api`.
+- API cannot find Ollama: confirm `ollama serve` is running and `OLLAMA_BASE_URL=http://localhost:11434`.
+- First upload is slow: OCR and PDF parsing can take time, especially for scanned Arabic files.
+- Legal answer is not found: upload the relevant law/PDF first. The assistant does not use outside legal knowledge for document-grounded answers.
 
 ## Docker
 
