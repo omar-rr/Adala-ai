@@ -13,6 +13,7 @@ A production-grade Retrieval-Augmented Generation platform for Egyptian legal re
 - Source metadata for document name, page, article number, chunk ID, and original text.
 - Clickable citations that open the original PDF, jump to the cited page, and highlight relevant text.
 - PDF.js viewer with page navigation, page search, deep links, and highlight overlays.
+- Electron desktop shell for a compact installable app experience.
 - Docker Compose and Hugging Face Spaces deployment paths.
 
 ## Architecture
@@ -54,12 +55,16 @@ flowchart LR
 │   │   ├── Dockerfile
 │   │   ├── requirements-local.txt
 │   │   └── requirements.txt
-│   └── web
+│   ├── web
 │       ├── app                  # Next.js App Router
 │       ├── components           # Research workspace, PDF viewer, shadcn-style UI
 │       ├── lib                  # API client, types, utilities
 │       ├── Dockerfile
 │       └── package.json
+│   └── desktop
+│       ├── main.cjs             # Electron shell that starts API and UI
+│       ├── package.json         # Windows installer config
+│       └── settings.example.json
 ├── deploy
 │   └── huggingface              # Single-container Space deployment
 ├── docker-compose.yml
@@ -268,6 +273,100 @@ cp apps/web/.env.example apps/web/.env.local
 - API cannot find Ollama: confirm `ollama serve` is running and `OLLAMA_BASE_URL=http://localhost:11434`.
 - First upload is slow: OCR and PDF parsing can take time, especially for scanned Arabic files.
 - Legal answer is not found: upload the relevant law/PDF first. The assistant does not use outside legal knowledge for document-grounded answers.
+
+## Desktop Application
+
+The desktop app is the compact installer path. It is designed so a user can install and open **Adala AI** like a normal Windows app.
+
+Option A, the lightweight installer mode, works like this:
+
+- The desktop app starts the local FastAPI backend automatically.
+- The desktop app starts the local Next.js UI automatically.
+- Uploaded PDFs, OCR output, indexes, and chat history stay local on the user's machine.
+- The model runs over the internet through a remote Ollama-compatible `/api/chat` endpoint.
+- The user does not install Ollama locally and does not download model weights.
+
+### Remote Model Requirement
+
+You need a hosted Ollama-compatible server reachable from the user's machine.
+
+The desktop app reads:
+
+```text
+%APPDATA%\Adala AI\settings.json
+```
+
+Example:
+
+```json
+{
+  "ollamaBaseUrl": "https://your-remote-ollama.example.com",
+  "ollamaModel": "qwen3:1.7b",
+  "ollamaApiKey": "",
+  "ragLlmEnabled": false
+}
+```
+
+If your remote server requires auth, set `ollamaApiKey`; the app sends it as a bearer token.
+
+### Run Desktop Mode in Development
+
+Install the desktop package:
+
+```powershell
+cd apps/desktop
+npm install
+cd ../..
+```
+
+Make sure the backend virtual environment already exists:
+
+```powershell
+cd apps/api
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-local.txt
+cd ../..
+```
+
+Run the desktop app:
+
+```powershell
+npm run dev:desktop
+```
+
+### Build a Windows Installer
+
+Build the web app:
+
+```powershell
+npm run build:web
+```
+
+Package the API:
+
+```powershell
+cd apps/api
+.\.venv\Scripts\Activate.ps1
+pip install pyinstaller
+pyinstaller --name adala-api --onedir launcher.py
+cd ../..
+```
+
+Build the installer:
+
+```powershell
+npm --prefix apps/desktop install
+npm run build:desktop
+```
+
+Installer output:
+
+```text
+apps/desktop/release
+```
+
+See [apps/desktop/README.md](apps/desktop/README.md) for desktop-specific details.
 
 ## Docker
 

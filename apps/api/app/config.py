@@ -26,7 +26,9 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     qwen_model_id: str = "Qwen/Qwen3-4B-Instruct-2507"
     ollama_base_url: str = "http://localhost:11434"
+    ollama_api_key: str | None = None
     ollama_model: str = "qwen3:1.7b"
+    ollama_request_timeout: int = 300
     vector_backend: str = "local"
     llm_provider: str = "extractive"
     rag_llm_enabled: bool = False

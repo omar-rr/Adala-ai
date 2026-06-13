@@ -72,14 +72,17 @@ def _ollama_stream(messages: list[dict[str, str]]) -> Iterator[str]:
         },
     }
     body = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if settings.ollama_api_key:
+        headers["Authorization"] = f"Bearer {settings.ollama_api_key}"
     req = request.Request(
         f"{settings.ollama_base_url.rstrip('/')}/api/chat",
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     state = {"in_think": False}
-    with request.urlopen(req, timeout=300) as response:
+    with request.urlopen(req, timeout=settings.ollama_request_timeout) as response:
         for raw_line in response:
             if not raw_line.strip():
                 continue

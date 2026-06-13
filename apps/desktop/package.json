@@ -1,0 +1,67 @@
+{
+  "name": "@adala-ai/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Desktop installer shell for adala ai.",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ai.adala.desktop",
+    "productName": "Adala AI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../../apps/api/dist/adala-api",
+        "to": "api",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../../apps/web/.next/standalone",
+        "to": "web",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../../apps/web/.next/static",
+        "to": "web/apps/web/.next/static",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../../apps/web/public",
+        "to": "web/apps/web/public",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

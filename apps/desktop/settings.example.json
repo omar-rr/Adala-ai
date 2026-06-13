@@ -1,0 +1,6 @@
+{
+  "ollamaBaseUrl": "https://your-remote-ollama.example.com",
+  "ollamaModel": "qwen3:1.7b",
+  "ollamaApiKey": "",
+  "ragLlmEnabled": false
+}
