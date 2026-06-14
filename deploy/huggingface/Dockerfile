@@ -44,6 +44,7 @@ RUN python3 -m venv /opt/venv \
 
 COPY apps/api/app /app/api/app
 COPY assets/seed-documents /app/seed-documents
+COPY assets/seed-ocr /app/seed-ocr
 COPY --from=web-builder /workspace/apps/web/.next/standalone /app/web
 COPY --from=web-builder /workspace/apps/web/.next/static /app/web/apps/web/.next/static
 COPY --from=web-builder /workspace/apps/web/public /app/web/apps/web/public

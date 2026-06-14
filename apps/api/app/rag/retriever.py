@@ -43,7 +43,7 @@ def terms_for(text: str) -> list[str]:
     terms: list[str] = []
     seen: set[str] = set()
     for variant in variants:
-        for term in re.findall(r"[\w\u0600-\u06FF]+", variant):
+        for term in re.findall(r"[a-z0-9_]+|[\u0621-\u064A\u0660-\u0669]+", variant, re.IGNORECASE):
             if len(term) < 2:
                 continue
             term_variants = [term]
@@ -474,6 +474,14 @@ def document_needs_lazy_ocr(document: dict, requested_article: str | None = None
     return requested is not None and requested > max(numeric_articles)
 
 
+def document_needs_highest_article_ocr(document: dict) -> bool:
+    article_numbers = [numeric_article(value) for value in db.list_article_numbers_for_document(document["id"])]
+    numeric_articles = [value for value in article_numbers if value is not None]
+    if not numeric_articles:
+        return True
+    return max(numeric_articles) >= 220
+
+
 def retrieve_exact_article_with_lazy_ocr(article_number: str) -> list[dict]:
     requested = numeric_article(article_number)
     if requested is None:
@@ -496,7 +504,7 @@ def retrieve_exact_article_with_lazy_ocr(article_number: str) -> list[dict]:
 def retrieve_highest_articles(top_k: int) -> list[RetrievedChunk]:
     if settings.ocr_enabled:
         for document in db.list_documents():
-            if not document_needs_lazy_ocr(document):
+            if not document_needs_highest_article_ocr(document):
                 continue
             path = Path(document["path"])
             if not path.exists():
