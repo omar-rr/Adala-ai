@@ -7,6 +7,7 @@ RUN npm install
 COPY apps/web ./apps/web
 ARG NEXT_PUBLIC_API_BASE_URL=/api
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV INTERNAL_API_BASE_URL=http://127.0.0.1:8000
 RUN npm --workspace apps/web run build
 
 FROM node:24-bookworm
