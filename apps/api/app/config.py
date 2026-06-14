@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     )
 
     data_dir: Path = Path("./data")
+    seed_documents_dir: Path | None = None
     max_upload_mb: int = 80
 
     embedding_model: str = "BAAI/bge-m3"

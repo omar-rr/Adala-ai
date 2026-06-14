@@ -7,11 +7,13 @@ from app import db
 from app.api import chat, documents, model
 from app.config import settings
 from app.models import HealthOut
+from app.seed import seed_documents
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     db.init_db()
+    seed_documents()
     yield
 
 

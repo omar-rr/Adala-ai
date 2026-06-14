@@ -91,14 +91,17 @@ def _persist_desktop_settings(model: str) -> None:
 def model_status(model: str = DEFAULT_LOCAL_MODEL) -> dict:
     running, installed, error_message = _installed_models()
     model_available = running and _model_matches(installed, model)
+    configured_for_local = (
+        settings.llm_provider.lower() == "ollama"
+        and settings.ollama_base_url.rstrip("/") == LOCAL_OLLAMA_BASE_URL
+    )
     return {
         "ollama_running": running,
         "installed_models": installed,
         "target_model": model,
         "model_available": model_available,
         "llm_provider": settings.llm_provider,
-        "local_model_enabled": settings.llm_provider.lower() == "ollama"
-        and settings.ollama_base_url.rstrip("/") == LOCAL_OLLAMA_BASE_URL,
+        "local_model_enabled": configured_for_local and model_available,
         "ollama_base_url": settings.ollama_base_url,
         "error": error_message,
     }

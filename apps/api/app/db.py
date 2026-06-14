@@ -110,6 +110,13 @@ def get_document_by_sha(sha256: str) -> dict[str, Any] | None:
     return row_to_dict(row)
 
 
+def update_document_name(document_id: str, name: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute("UPDATE documents SET name = ? WHERE id = ?", (name, document_id))
+        row = conn.execute("SELECT * FROM documents WHERE id = ?", (document_id,)).fetchone()
+    return row_to_dict(row)
+
+
 def list_documents(search: str | None = None) -> list[dict[str, Any]]:
     with connect() as conn:
         if search:

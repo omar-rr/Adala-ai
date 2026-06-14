@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, shell } = require("electron");
 const fs = require("node:fs");
 const http = require("node:http");
 const https = require("node:https");
@@ -41,6 +41,12 @@ function readJsonIfExists(filePath) {
 
 function desktopSettingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
+}
+
+function seedDocumentsPath() {
+  return isPackaged()
+    ? path.join(process.resourcesPath, "seed-documents")
+    : path.join(repoRoot(), "assets", "seed-documents");
 }
 
 function bundledDefaultSettings() {
@@ -132,6 +138,7 @@ function startApi() {
     CORS_ORIGINS: `${WEB_URL},http://localhost:${WEB_PORT}`,
     DATA_DIR: path.join(app.getPath("userData"), "data"),
     ADALA_DESKTOP_SETTINGS_PATH: desktopSettingsPath(),
+    SEED_DOCUMENTS_DIR: seedDocumentsPath(),
     VECTOR_BACKEND: "local",
     LLM_PROVIDER: settings.llmProvider,
     RAG_LLM_ENABLED: settings.ragLlmEnabled,
@@ -260,6 +267,14 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false
     }
+  });
+
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      shell.openExternal(url);
+      return { action: "deny" };
+    }
+    return { action: "allow" };
   });
 
   await window.loadURL(WEB_URL);

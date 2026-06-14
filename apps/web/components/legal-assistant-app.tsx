@@ -89,7 +89,7 @@ export function LegalAssistantApp() {
   const [uploadState, setUploadState] = React.useState<UploadState>("idle");
   const [statusText, setStatusText] = React.useState<string | null>(null);
   const [modelStatus, setModelStatus] = React.useState<LocalModelStatus | null>(null);
-  const [modelSetupOpen, setModelSetupOpen] = React.useState(false);
+  const [modelSetupOpen, setModelSetupOpen] = React.useState(true);
   const [modelBusy, setModelBusy] = React.useState(false);
   const [modelProgress, setModelProgress] = React.useState<ModelProgress | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -113,24 +113,49 @@ export function LegalAssistantApp() {
   React.useEffect(() => {
     let active = true;
     async function loadInitialState() {
-      try {
-        const [nextDocuments, nextConversations, nextModelStatus] = await Promise.all([
+      const [documentResult, conversationResult, modelResult] = await Promise.allSettled([
           refreshDocuments(),
           refreshConversations(),
           refreshModelStatus(),
-        ]);
-        if (!active) return;
-        setDocuments(nextDocuments);
-        setConversations(nextConversations);
-        setModelStatus(nextModelStatus);
-        const dismissed =
-          typeof window !== "undefined" &&
-          window.localStorage.getItem("adala-ai-model-setup-dismissed") === "true";
-        if (!nextModelStatus.local_model_enabled && !dismissed) {
-          setModelSetupOpen(true);
+      ]);
+      if (!active) return;
+
+      if (documentResult.status === "fulfilled") {
+        setDocuments(documentResult.value);
+      }
+      if (conversationResult.status === "fulfilled") {
+        setConversations(conversationResult.value);
+      }
+      if (modelResult.status === "fulfilled") {
+        setModelStatus(modelResult.value);
+        if (modelResult.value.model_available && !modelResult.value.local_model_enabled) {
+          try {
+            const enabledStatus = await enableLocalModel(LOCAL_MODEL);
+            if (!active) return;
+            setModelStatus(enabledStatus);
+            setModelSetupOpen(!enabledStatus.local_model_enabled);
+          } catch {
+            setModelSetupOpen(true);
+          }
+        } else {
+          setModelSetupOpen(!modelResult.value.local_model_enabled);
         }
-      } catch {
-        if (active) setStatusText("Could not load initial workspace data.");
+      } else {
+        setModelStatus({
+          ollama_running: false,
+          installed_models: [],
+          target_model: LOCAL_MODEL,
+          model_available: false,
+          llm_provider: "extractive",
+          local_model_enabled: false,
+          ollama_base_url: "http://localhost:11434",
+          error: "Could not check local AI model.",
+        });
+        setModelSetupOpen(true);
+      }
+
+      if (documentResult.status === "rejected" || conversationResult.status === "rejected") {
+        setStatusText("Could not load some workspace data. The app is still usable.");
       }
     }
     void loadInitialState();
@@ -209,7 +234,6 @@ export function LegalAssistantApp() {
   };
 
   const closeModelSetupForNow = () => {
-    window.localStorage.setItem("adala-ai-model-setup-dismissed", "true");
     setModelSetupOpen(false);
   };
 
@@ -234,7 +258,6 @@ export function LegalAssistantApp() {
     try {
       const nextStatus = await enableLocalModel(LOCAL_MODEL);
       setModelStatus(nextStatus);
-      window.localStorage.removeItem("adala-ai-model-setup-dismissed");
       setModelProgress({ status: "Local AI mode is enabled." });
       setStatusText("Local AI mode enabled. General chat now uses your local Qwen model.");
       setModelSetupOpen(false);
@@ -273,7 +296,6 @@ export function LegalAssistantApp() {
         throw new Error(streamError);
       }
       const nextStatus = await refreshModelStatus();
-      window.localStorage.removeItem("adala-ai-model-setup-dismissed");
       if (nextStatus.local_model_enabled) {
         setStatusText("Local AI model downloaded and enabled.");
         setModelSetupOpen(false);
@@ -673,7 +695,7 @@ function LocalModelSetup({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-50 grid place-items-center bg-black/62 px-4 backdrop-blur-md"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4 backdrop-blur-md"
     >
       <motion.section
         initial={{ opacity: 0, y: 18, scale: 0.98 }}

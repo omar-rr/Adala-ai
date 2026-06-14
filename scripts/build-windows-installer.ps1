@@ -74,14 +74,23 @@ if ($EnableOcr) {
 }
 Remove-GeneratedDirectory $apiDistDir
 Remove-GeneratedDirectory $apiBuildDir
-& ".\.venv\Scripts\pyinstaller.exe" `
-  --noconfirm `
-  --clean `
-  --name adala-api `
-  --onedir `
-  --hidden-import app.main `
-  --collect-submodules app `
-  launcher.py
+$pyinstallerArgs = @(
+  "--noconfirm",
+  "--clean",
+  "--name", "adala-api",
+  "--onedir",
+  "--hidden-import", "app.main",
+  "--collect-submodules", "app"
+)
+if ($EnableOcr) {
+  $pyinstallerArgs += @(
+    "--hidden-import", "easyocr",
+    "--collect-all", "easyocr",
+    "--collect-all", "torch",
+    "--collect-all", "torchvision"
+  )
+}
+& ".\.venv\Scripts\pyinstaller.exe" @pyinstallerArgs launcher.py
 Pop-Location
 
 Write-Step "Building Next.js UI"
