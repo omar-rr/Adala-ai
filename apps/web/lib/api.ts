@@ -13,6 +13,23 @@ export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localho
   "",
 );
 
+function apiUrl(path: string) {
+  const href = `${API_BASE}${path}`;
+  if (/^https?:\/\//i.test(href)) return href;
+  if (typeof window === "undefined") return href;
+  return new URL(href, window.location.origin).toString();
+}
+
+function apiUrlObject(path: string) {
+  const href = `${API_BASE}${path}`;
+  const base = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  return new URL(href, base);
+}
+
+export function supportsLocalModelSetupClient() {
+  return /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])/i.test(API_BASE);
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const text = await response.text();
@@ -29,7 +46,7 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 export async function listDocuments(search?: string) {
-  const url = new URL(`${API_BASE}/documents`);
+  const url = apiUrlObject("/documents");
   if (search) url.searchParams.set("search", search);
   return readJson<LegalDocument[]>(await fetch(url));
 }
@@ -38,7 +55,7 @@ export async function uploadDocument(file: File) {
   const form = new FormData();
   form.append("file", file);
   return readJson<LegalDocument & { chunk_count: number; duplicate: boolean }>(
-    await fetch(`${API_BASE}/documents/upload`, {
+    await fetch(apiUrl("/documents/upload"), {
       method: "POST",
       body: form,
     }),
@@ -46,22 +63,22 @@ export async function uploadDocument(file: File) {
 }
 
 export async function listConversations() {
-  return readJson<Conversation[]>(await fetch(`${API_BASE}/conversations`));
+  return readJson<Conversation[]>(await fetch(apiUrl("/conversations")));
 }
 
 export async function listMessages(conversationId: string) {
-  return readJson<ChatMessage[]>(await fetch(`${API_BASE}/conversations/${conversationId}/messages`));
+  return readJson<ChatMessage[]>(await fetch(apiUrl(`/conversations/${conversationId}/messages`)));
 }
 
 export async function getLocalModelStatus(model = "qwen3:1.7b") {
-  const url = new URL(`${API_BASE}/model/status`);
+  const url = apiUrlObject("/model/status");
   url.searchParams.set("model", model);
   return readJson<LocalModelStatus>(await fetch(url));
 }
 
 export async function enableLocalModel(model = "qwen3:1.7b") {
   return readJson<LocalModelStatus>(
-    await fetch(`${API_BASE}/model/enable-local`, {
+    await fetch(apiUrl("/model/enable-local"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model }),
@@ -70,14 +87,14 @@ export async function enableLocalModel(model = "qwen3:1.7b") {
 }
 
 export function documentFileUrl(documentId: string) {
-  return `${API_BASE}/documents/${documentId}/file`;
+  return apiUrl(`/documents/${documentId}/file`);
 }
 
 export async function streamChat(
   request: { message: string; conversation_id?: string | null; top_k?: number },
   handlers: StreamHandlers,
 ) {
-  const response = await fetch(`${API_BASE}/chat`, {
+  const response = await fetch(apiUrl("/chat"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -133,7 +150,7 @@ export async function streamChat(
 }
 
 export async function streamLocalModelPull(model: string, handlers: ModelPullHandlers) {
-  const response = await fetch(`${API_BASE}/model/pull`, {
+  const response = await fetch(apiUrl("/model/pull"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model }),

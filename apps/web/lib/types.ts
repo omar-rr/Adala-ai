@@ -46,6 +46,8 @@ export type LocalModelStatus = {
   target_model: string;
   model_available: boolean;
   llm_provider: string;
+  app_env: string;
+  local_setup_supported: boolean;
   local_model_enabled: boolean;
   ollama_base_url: string;
   error?: string | null;

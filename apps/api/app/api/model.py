@@ -95,12 +95,17 @@ def model_status(model: str = DEFAULT_LOCAL_MODEL) -> dict:
         settings.llm_provider.lower() == "ollama"
         and settings.ollama_base_url.rstrip("/") == LOCAL_OLLAMA_BASE_URL
     )
+    local_setup_supported = settings.app_env.lower() in {"development", "desktop", "local"} or bool(
+        os.getenv("ADALA_DESKTOP_SETTINGS_PATH")
+    )
     return {
         "ollama_running": running,
         "installed_models": installed,
         "target_model": model,
         "model_available": model_available,
         "llm_provider": settings.llm_provider,
+        "app_env": settings.app_env,
+        "local_setup_supported": local_setup_supported,
         "local_model_enabled": configured_for_local and model_available,
         "ollama_base_url": settings.ollama_base_url,
         "error": error_message,

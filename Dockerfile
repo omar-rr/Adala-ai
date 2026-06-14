@@ -14,6 +14,7 @@ FROM node:24-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    APP_ENV=space \
     PORT=7860 \
     DATA_DIR=/data \
     SEED_DOCUMENTS_DIR=/app/seed-documents \

@@ -37,6 +37,7 @@ import {
   listMessages,
   streamChat,
   streamLocalModelPull,
+  supportsLocalModelSetupClient,
   uploadDocument,
 } from "@/lib/api";
 import type { ChatMessage, Citation, Conversation, LegalDocument, LocalModelStatus } from "@/lib/types";
@@ -89,7 +90,7 @@ export function LegalAssistantApp() {
   const [uploadState, setUploadState] = React.useState<UploadState>("idle");
   const [statusText, setStatusText] = React.useState<string | null>(null);
   const [modelStatus, setModelStatus] = React.useState<LocalModelStatus | null>(null);
-  const [modelSetupOpen, setModelSetupOpen] = React.useState(true);
+  const [modelSetupOpen, setModelSetupOpen] = React.useState(() => supportsLocalModelSetupClient());
   const [modelBusy, setModelBusy] = React.useState(false);
   const [modelProgress, setModelProgress] = React.useState<ModelProgress | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -128,7 +129,9 @@ export function LegalAssistantApp() {
       }
       if (modelResult.status === "fulfilled") {
         setModelStatus(modelResult.value);
-        if (modelResult.value.model_available && !modelResult.value.local_model_enabled) {
+        if (!modelResult.value.local_setup_supported) {
+          setModelSetupOpen(false);
+        } else if (modelResult.value.model_available && !modelResult.value.local_model_enabled) {
           try {
             const enabledStatus = await enableLocalModel(LOCAL_MODEL);
             if (!active) return;
@@ -147,11 +150,13 @@ export function LegalAssistantApp() {
           target_model: LOCAL_MODEL,
           model_available: false,
           llm_provider: "extractive",
+          app_env: "unknown",
+          local_setup_supported: supportsLocalModelSetupClient(),
           local_model_enabled: false,
           ollama_base_url: "http://localhost:11434",
           error: "Could not check local AI model.",
         });
-        setModelSetupOpen(true);
+        setModelSetupOpen(supportsLocalModelSetupClient());
       }
 
       if (documentResult.status === "rejected" || conversationResult.status === "rejected") {
@@ -235,6 +240,16 @@ export function LegalAssistantApp() {
 
   const closeModelSetupForNow = () => {
     setModelSetupOpen(false);
+  };
+
+  const openModelSetup = () => {
+    if (modelStatus && !modelStatus.local_setup_supported) {
+      setStatusText(
+        "Local AI setup is available in the desktop/local app. Hugging Face Spaces run in hosted document mode.",
+      );
+      return;
+    }
+    setModelSetupOpen(true);
   };
 
   const handleRefreshModel = async () => {
@@ -534,10 +549,14 @@ export function LegalAssistantApp() {
                   size="sm"
                   variant="secondary"
                   title="Local AI model setup"
-                  onClick={() => setModelSetupOpen(true)}
+                  onClick={openModelSetup}
                 >
                   <Cpu className="h-3.5 w-3.5" />
-                  {modelStatus?.local_model_enabled ? "Local AI" : "AI mode"}
+                  {modelStatus?.local_model_enabled
+                    ? "Local AI"
+                    : modelStatus?.local_setup_supported === false
+                      ? "Hosted"
+                      : "AI mode"}
                 </Button>
                 <Badge className="hidden border-[#23d6a2]/30 bg-[#23d6a2]/10 text-[#8af0cf] sm:inline-flex">
                   <ShieldCheck className="mr-1 h-3 w-3" />
