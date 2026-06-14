@@ -1,6 +1,9 @@
 # adala ai
 
 A production-grade Retrieval-Augmented Generation platform for Egyptian legal research. Users upload Egyptian law books, legal PDFs, constitutions, regulations, court rulings, and case files, then ask Arabic, English, or mixed-language questions. Answers are generated only from retrieved document chunks and include clickable source citations.
+<img width="1917" height="852" alt="Screenshot 2026-06-14 042331" src="https://github.com/user-attachments/assets/5da6b531-a491-4d1c-882a-df3a1a5b1bcd" />
+<img width="1912" height="847" alt="Screenshot 2026-06-14 042238" src="https://github.com/user-attachments/assets/7979179b-5d4a-4acb-95fd-ceaf52404bd2" />
+
 
 ## Features
 
