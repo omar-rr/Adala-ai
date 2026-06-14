@@ -1,3 +1,14 @@
+---
+title: Adala AI
+emoji: ⚖️
+colorFrom: emerald
+colorTo: cyan
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # adala ai
 
 A production-grade Retrieval-Augmented Generation platform for Egyptian legal research. Users upload Egyptian law books, legal PDFs, constitutions, regulations, court rulings, and case files, then ask Arabic, English, or mixed-language questions. Answers are generated only from retrieved document chunks and include clickable source citations.
