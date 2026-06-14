@@ -1,8 +1,8 @@
 ---
 title: Adala AI
 emoji: ⚖️
-colorFrom: emerald
-colorTo: cyan
+colorFrom: green
+colorTo: blue
 sdk: docker
 app_port: 7860
 pinned: false
