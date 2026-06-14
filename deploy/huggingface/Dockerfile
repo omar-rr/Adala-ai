@@ -47,7 +47,7 @@ COPY --from=web-builder /workspace/apps/web/.next/static /app/web/apps/web/.next
 COPY --from=web-builder /workspace/apps/web/public /app/web/apps/web/public
 COPY deploy/huggingface/start.sh /app/start.sh
 
-RUN chmod +x /app/start.sh
+RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
 
 EXPOSE 7860
 CMD ["/app/start.sh"]
